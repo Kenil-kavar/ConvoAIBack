@@ -1,12 +1,13 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import requests
-import torch
+import torch , os, base64, subprocess
 import numpy as np
 import os, subprocess
 from dotenv import load_dotenv
 from unsloth import FastLanguageModel
 from .models import build_model  
+from django.conf import settings
 from myapp.Kokoro82M.kokoro import generate
 from scipy.io.wavfile import write
 
@@ -122,47 +123,43 @@ def process_text_file(file_path):
 
 @csrf_exempt
 def handle_audio(request):
-    if request.method == 'POST' and request.FILES.get('audio_file'):
-        audio_file = request.FILES['audio_file']
-        audio_file_path = f"media/{audio_file.name}"
-        
-        # save the uploaded file to the specified path
-        with open(audio_file_path, 'wb+') as destination:
-            for chunk in audio_file.chunks():
-                destination.write(chunk)
-        
-        # Use the uploaded file path in the command
-        command = f"python3 ../whisper_streaming/whisper_online.py {audio_file_path} --language en --min-chunk-size 1 > text.txt"
-        
-        # run the command for whisper speech to text model
-        subprocess.run(command, shell=True, check=True)
-        
-        file_path = "../whisper_streaming/text.txt"
-        user_input=process_text_file(file_path)
+      try:
+          # Get the uploaded audio file
+          audio_file = request.FILES['audio_file']
+          audio_file_path = os.path.join(settings.MEDIA_ROOT, audio_file.name)"
+          # Save the uploaded file
+          with open(audio_file_path, 'wb+') as destination:
+              for chunk in audio_file.chunks():
+                  destination.write(chunk)
+          # Run Whisper speech-to-text model
+          command = f"python3 ../whisper_streaming/whisper_online.py {audio_file_path} --language en --min-chunk-size 1 > text.txt"
+          subprocess.run(command, shell=True, check=True)
+          # Process the output text file
+          file_path = "../whisper_streaming/text.txt"
+          user_input = process_text_file(file_path)
+          if not user_input:
+              return JsonResponse({'error': 'Transcription failed'}, status=500)
+              
+          # Get AI response
+          ai_response = chat_with_model(user_input)
+          if not ai_response:
+              return JsonResponse({'error': 'No response from the chat model'}, status=500)
+              
+          # Generate AI Voice Response
+          device = 'cuda' if torch.cuda.is_available() else 'cpu'
+          kokoro_model = build_model('kokoro-v0_19.pth', device)
+          voice_name = 'af'  # Select a voice
+          voicepack = torch.load(f'voices/{voice_name}.pt', weights_only=True).to(device)
+          output_audio_path = os.path.join(settings.MEDIA_ROOT, "output.wav")
+          generate_and_play_audio(ai_response, kokoro_model, voicepack, voice_name, output_audio_path)
+          
+          # Encode the generated audio file in Base64 for response
+          with open(output_audio_path, "rb") as audio_file:
+              encoded_audio = base64.b64encode(audio_file.read()).decode("utf-8")
+          return JsonResponse({'response': ai_response, 'audio_file': encoded_audio})
+      except subprocess.CalledProcessError as e:
+          return JsonResponse({'error': f'Whisper model error: {str(e)}'}, status=500)
+      except Exception as e:
+          return JsonResponse({'error': f'Unexpected error: {str(e)}'}, status=500)
 
-        
-        
-        if not user_input:
-            return JsonResponse({'error': 'Transcription failed'}, status=500)
-
-        # Get AI response
-        ai_response = chat_with_model(user_input)
-
-        # Generate and play audio for the AI response
-        if ai_response:
-            device = 'cuda' if torch.cuda.is_available() else 'cpu'
-            kokoro_model = build_model('kokoro-v0_19.pth', device)
-            voice_name = [
-                'af',  # Default voice is a 50-50 mix of Bella & Sarah
-                'af_bella', 'af_sarah', 'am_adam', 'am_michael',
-                'bf_emma', 'bf_isabella', 'bm_george', 'bm_lewis',
-                'af_nicole', 'af_sky',
-            ][0]
-            voicepack = torch.load(f'voices/{voice_name}.pt', weights_only=True).to(device)
-            generate_and_play_audio(ai_response, kokoro_model, voicepack, voice_name)
-
-            return JsonResponse({'response': ai_response, 'audio_file': 'output.wav'})
-        else:
-            return JsonResponse({'error': 'No response from the chat model'}, status=500)
-    else:
-        return JsonResponse({'error': 'Invalid request'}, status=400)
+      return JsonResponse({'error': 'Invalid request'}, status=400)
