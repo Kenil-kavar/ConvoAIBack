@@ -126,7 +126,7 @@ def handle_audio(request):
       try:
           # Get the uploaded audio file
           audio_file = request.FILES['audio_file']
-          audio_file_path = os.path.join(settings.MEDIA_ROOT, audio_file.name)"
+          audio_file_path = os.path.join(settings.MEDIA_ROOT, audio_file.name)
           # Save the uploaded file
           with open(audio_file_path, 'wb+') as destination:
               for chunk in audio_file.chunks():
