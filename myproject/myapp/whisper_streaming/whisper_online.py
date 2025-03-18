@@ -895,8 +895,8 @@ if __name__ == "__main__":
         if now is None:
             now = time.time()-start
         if o[0] is not None:
-            print("%1.4f %1.0f %1.0f %s" % (now*1000, o[0]*1000,o[1]*1000,o[2]),file=logfile,flush=True)
-            print("%1.4f %1.0f %1.0f %s" % (now*1000, o[0]*1000,o[1]*1000,o[2]),flush=True)
+            print((o[2]),file=logfile,flush=True)
+            print((o[2]),flush=True)
         else:
             # No text, so no output
             pass
