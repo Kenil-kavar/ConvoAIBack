@@ -31,7 +31,7 @@ The backend should now be up and running in the Background!
 
 ### Step 4: Make it Live with NGROK
 ```sh
-!pip install pyngrok
+!pip install pyngrok  ## If it shows error then restart session on colab
 !ngrok config add-authtoken 2k6bQMxNdBdGf1ufHl7UwXc9g1h_81AUdX77yAhinTYoVDiGG
 
 from pyngrok import ngrok
@@ -39,3 +39,4 @@ public_url = ngrok.connect(8000)
 print(public_url)
 ```
 
+# Output files are saved in tmp folder
