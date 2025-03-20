@@ -33,7 +33,7 @@ def initialize_chat_model():
     try:
         # Load the saved model and tokenizer
         model, tokenizer = FastLanguageModel.from_pretrained(
-            model_name="/content/ConvBack/myproject/myapp/whisper_streaming/lora_modelcontent/whisper_streaming/lora_model",
+            model_name="/content/ConvoAIBack/myproject/myapp/whisper_streaming/lora_model",
             max_seq_length=2048,
             dtype=torch.float16,
             load_in_4bit=True,
@@ -46,7 +46,7 @@ def initialize_chat_model():
             "role": "system",
             "content": (
                 "You are a friendly and professional customer care assistant. "
-                "Assist users with clear and accurate guidance for their requests."
+                "Assist users with clear and accurate guidance for their requests within 15 words."
             )
         }
 
@@ -128,29 +128,35 @@ def process_text_file(file_path):
 
 @csrf_exempt
 def handle_audio(request):
-    if request.method == 'POST' and 'audio' in request.FILES:
+    if request.method == 'POST' and 'audio_file' in request.FILES:
         try:
             start_time = time.time()
             
-            # Save uploaded audio file to a temporary location
-            audio_file = request.FILES['audio']
-            temp_audio_path = f"/tmp/{audio_file.name}"
+            audio_file = request.FILES['audio_file']
             
+            os.makedirs("/content/ConvoAIBack/myproject/myapp/tmp", exist_ok=True)  # Create tmp directory if it doesn't exist
+            temp_audio_path = f"/content/ConvoAIBack/myproject/myapp/tmp/{audio_file.name}"           
             with open(temp_audio_path, 'wb') as f:
                 for chunk in audio_file.chunks():
                     f.write(chunk)
 
+            # Verify file exists and has data
+            if os.path.exists(temp_audio_path) and os.path.getsize(temp_audio_path) > 0:
+                print(f"Audio file saved successfully: {temp_audio_path}")
+            else:
+                raise Exception("Audio file was not saved correctly")
+
             # Run Whisper speech-to-text model
             whisper_command = (
-                f"python3 /content/ConvBack/myproject/myapp/whisper_streaming/whisper_online.py "
-                f"{temp_audio_path} --language en --min-chunk-size 1 > /tmp/text.txt"
+                f"python3 /content/ConvoAIBack/myproject/myapp/whisper_streaming/whisper_online.py "
+                f"{temp_audio_path} --language en --min-chunk-size 1 > /content/ConvoAIBack/myproject/myapp/tmp/text.txt"
             )
 
             subprocess.run(whisper_command, shell=True, check=True)
             print("Whisper processing complete.")
 
             # Process the output text file
-            file_path = "/tmp/text.txt"
+            file_path = "/content/ConvoAIBack/myproject/myapp/tmp/text.txt"
             user_input = process_text_file(file_path)
 
             # Initialize the chat model
@@ -174,8 +180,8 @@ def handle_audio(request):
             # Generate speech
             speech = model.generate_speech(inputs["input_ids"], speaker_embeddings, vocoder=vocoder)
 
-            output_speech_path = "/tmp/speech.wav"
-            sf.write(output_speech_path, speech.numpy(), samplerate=25000)
+            output_speech_path = "/content/ConvoAIBack/myproject/myapp/tmp/speech.wav"
+            sf.write(output_speech_path, speech.numpy(), samplerate=20000)
 
             end_time = time.time()
             print(f"Finished processing in {end_time - start_time:.4f} sec")
