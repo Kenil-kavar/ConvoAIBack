@@ -12,6 +12,10 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
+MONGO_DB_NAME='Convodata'
+MONGO_DB_USER = 'convolabs8'
+MONGO_DB_PASSWORD = 'asd123'
+MONGO_URI = f"mongodb+srv://{MONGO_DB_USER}:{MONGO_DB_PASSWORD}@cluster0.sciq3.mongodb.net/?appName=Cluster0"
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
