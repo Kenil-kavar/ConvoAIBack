@@ -1,10 +1,13 @@
 from django.urls import path
-from .views import handle_audio  # Import the view
+from django.contrib import admin
+from .views import handle_audio, submit_form # Import the view
 
 
 urlpatterns = [
     # Route for handling audio files
+    path('admin/', admin.site.urls),
     path('handle-audio/', handle_audio, name='handle_audio'),
+    path('submit/', submit_form, name='submit_form'),
 ]
 
 
