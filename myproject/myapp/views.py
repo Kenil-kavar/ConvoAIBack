@@ -16,10 +16,31 @@ import soundfile as sf
 from datasets import load_dataset 
 from django.conf import settings
 from scipy.io.wavfile import write
-
+from django.shortcuts import render
+from .forms import YourForm
+from .mongo_utils import get_mongo_client
+from django.http import HttpResponse
+import datetime
 
 # Load environment variables
 load_dotenv()
+
+
+@csrf_exempt  # Remove this if using CSRF protection in frontend
+def submit_form(request):
+    if request.method == 'POST':
+        form = YourForm(request.POST)
+        if form.is_valid():
+            try:
+                db = get_mongo_client()
+                db["User"].insert_one(form.cleaned_data)
+                return JsonResponse({"success": True, "message": "Form data saved successfully"})
+            except Exception as e:
+                return JsonResponse({"success": False, "error": str(e)}, status=500)
+        else:
+            return JsonResponse({"success": False, "errors": form.errors}, status=400)
+    
+    return JsonResponse({"error": "Invalid request method"}, status=405)
 
 # Global variables
 model = None
