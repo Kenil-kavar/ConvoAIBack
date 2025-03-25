@@ -21,6 +21,7 @@ from .forms import YourForm
 from .mongo_utils import get_mongo_client
 from django.http import HttpResponse
 import datetime
+from django.contrib.auth.hashers import make_password
 
 # Load environment variables
 load_dotenv()
@@ -33,7 +34,17 @@ def submit_form(request):
         if form.is_valid():
             try:
                 db = get_mongo_client()
-                db["User"].insert_one(form.cleaned_data)
+
+                # Get form data
+                form_data = form.cleaned_data
+
+                # Hash the password before saving
+                if "password" in form_data:
+                    form_data["password"] = make_password(form_data["password"])
+
+                # Save to MongoDB
+                db["signup"].insert_one(form_data)
+
                 return JsonResponse({"success": True, "message": "Form data saved successfully"})
             except Exception as e:
                 return JsonResponse({"success": False, "error": str(e)}, status=500)
