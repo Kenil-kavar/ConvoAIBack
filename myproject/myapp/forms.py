@@ -2,6 +2,7 @@
 from django import forms
 
 class YourForm(forms.Form):
-    name = forms.CharField(max_length=100)
+    fullname = forms.CharField(max_length=100)
+    mobilenumber = forms.CharField(max_length=15)  # Assuming mobile numbers are strings
     email = forms.EmailField()
-    message = forms.CharField(widget=forms.Textarea)
+    password = forms.CharField(widget=forms.PasswordInput)
