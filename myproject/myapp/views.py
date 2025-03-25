@@ -17,7 +17,7 @@ from datasets import load_dataset
 from django.conf import settings
 from scipy.io.wavfile import write
 from django.shortcuts import render
-from .forms import YourForm
+from .forms import YourForm, CareerForm, EnquireForm
 from .mongo_utils import get_mongo_client
 from django.http import HttpResponse
 import datetime
@@ -25,6 +25,30 @@ from django.contrib.auth.hashers import make_password
 
 # Load environment variables
 load_dotenv()
+
+@csrf_exempt
+def Enquire_Form(request):
+    if request.method == 'POST':
+        form = EnquireForm(request.POST)
+        if form.is_valid():
+            try:
+                db = get_mongo_client()
+                collection = db["EnquireForm"]  # Change collection name if needed
+
+                # Convert form data to a dictionary and save it in MongoDB
+                form_data = form.cleaned_data
+                form_data["area_of_interest"] = list(form.cleaned_data["area_of_interest"])  # Convert QueryDict to list
+                form_data["looking_for"] = list(form.cleaned_data["looking_for"])  # Convert QueryDict to list
+
+                collection.insert_one(form_data)  # Insert into MongoDB
+
+                return JsonResponse({"success": True, "message": "Form submitted successfully!"})
+            except Exception as e:
+                return JsonResponse({"success": False, "error": str(e)}, status=500)
+        else:
+            return JsonResponse({"success": False, "errors": form.errors}, status=400)
+    
+    return JsonResponse({"error": "Invalid request method"}, status=405)
 
 
 @csrf_exempt  # Remove this if using CSRF protection in frontend
