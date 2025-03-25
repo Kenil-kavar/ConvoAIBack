@@ -53,6 +53,51 @@ def submit_form(request):
     
     return JsonResponse({"error": "Invalid request method"}, status=405)
 
+# Ensure the upload directory exists
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+@csrf_exempt  # Remove if using CSRF protection in frontend
+def Career_form(request):
+    if request.method == 'POST':
+        form = CareerForm(request.POST, request.FILES)  # Include request.FILES for file handling
+
+        if form.is_valid():
+            try:
+                db = get_mongo_client()
+
+                # Get form data
+                form_data = form.cleaned_data
+
+                # Hash password if it exists in form
+                if "password" in form_data:
+                    form_data["password"] = make_password(form_data["password"])
+
+                # Handle file upload
+                if "resume" in request.FILES:
+                    resume_file = request.FILES["resume"]
+                    file_path = os.path.join(UPLOAD_DIR, resume_file.name)  # Store in 'uploads' directory
+                    
+                    # Save file
+                    with open(file_path, "wb") as f:
+                        for chunk in resume_file.chunks():
+                            f.write(chunk)
+
+                    form_data["resume"] = file_path  # Store file path in MongoDB
+
+                # Save to MongoDB
+                db["careerform"].insert_one(form_data)
+
+                return JsonResponse({"success": True, "message": "CareerForm data saved successfully"})
+            except Exception as e:
+                return JsonResponse({"success": False, "error": str(e)}, status=500)
+        else:
+            return JsonResponse({"success": False, "errors": form.errors}, status=400)
+    
+    return JsonResponse({"error": "Invalid request method"}, status=405)
+
+
+
 # Global variables
 model = None
 tokenizer = None
